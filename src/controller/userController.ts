@@ -2,18 +2,22 @@ import {Request, Response} from "express";
 import bcrypt from "bcryptjs";
 import jwt, { Secret } from "jsonwebtoken";
 import User from "../model/userModel";
-const asyncHandler = require ("express-async-handler");
-const express = require("express");
-const Token = require ("../model/tokenModel");
-const crypto = require ("crypto");
+import asyncHandler from "express-async-handler";
+import Token from "../model/tokenModel";
+import crypto from "crypto";
 import sendEmail from "../utils/sendEmail";
-
 import {
    incrementConsecutiveFailedAttempts,
    resetConsecutiveFailedAttempts,
    lockUserAccount,
-   updateLastLogin
+   updateLastLogin,
 } from "./userFunctions";
+import { 
+  emailValidator, 
+  passwordValidator,
+  phoneValidator, 
+  addressValidator, 
+  ValidationResult, } from "../utils/validation";
 
 //This is a function called genarateToken for users
 const genarateToken = (userId: string) => {
@@ -22,27 +26,40 @@ const genarateToken = (userId: string) => {
 };
 
 //This is an async function called signup
-const signup = asyncHandler(async(req: Request, res: Response) => { 
+export const signup = async(req: Request, res: Response) => { 
   try {
     //Destructuring 
     const { name, email, password, phone, address } = req.body;
+
+     // Validate user input
+     const emailValidationResult: ValidationResult = emailValidator(email);
+     const passwordValidationResult: ValidationResult = passwordValidator(password);
+     const phoneValidationResult: ValidationResult = phoneValidator(phone);
+     const addressValidationResult: ValidationResult = addressValidator(address);
+
+     // Check if any validation failed
+     if(
+      !emailValidationResult.isValid || !passwordValidationResult.isValid || !phoneValidationResult.isValid || !addressValidationResult.isValid ){
+        return res.status(400).json({
+          error: "Invalid inputs",
+          emailValidation: emailValidationResult,
+          passwordValidation: passwordValidationResult,
+          phoneValidation: phoneValidationResult,
+          addressValidation: addressValidationResult,
+        });
+      }
    
 
     // Check if the user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(401).json({ error: "User already exists" });
+      return res.status(409).json({ error: "User already exists" });
     }
 
     // Check if all fields are present
     if (!name || !email || !password || !phone || !address) {
       return res.status(400).json({ error: "Please fill out all field required"});
     } 
-
-    if(password.length <6){
-      res.status(400)
-      throw new Error ("PLease password must be at lest 6 charaters")
-    }
 
     // Hash the password before saving it or creating new user
     const hashPassword = await bcrypt.hash(password, 10);
@@ -77,14 +94,27 @@ const signup = asyncHandler(async(req: Request, res: Response) => {
     console.log(error);
     return res.status(500).json({ error: "Internal Server Error" });
   }
-}); // Ends of sygnup
+}; // Ends of sygnup
 
 
 //This is an async function called login
-const login = asyncHandler(async(req: Request,
+export const login = async(req: Request,
 res: Response) =>{
   try {
     const {email, password} = req.body;
+
+      // Validate user input
+      const emailValidationResult: ValidationResult = emailValidator(email);
+      const passwordValidationResult: ValidationResult = passwordValidator(password);
+      if(!emailValidationResult.isValid || !passwordValidationResult.isValid){
+        return res.status(400).json({
+          error: "Invalid inputs",
+          emailValidation: emailValidationResult,
+          passwordValidation: passwordValidationResult,
+        });
+
+      }
+    
 
     // Find the user by email
     const user = await User.findOne({email});
@@ -94,7 +124,7 @@ res: Response) =>{
 
     // Check if the user is locked
     if(user.isLocked){
-      return res.status(401).json({error: "Account is locked. Please contact an administrator."})
+      return res.status(403).json({error: "Account is locked. Please contact an administrator."})
     }
     
     // Compare the provided password with the stored hashed password
@@ -107,7 +137,7 @@ res: Response) =>{
       // Check if the user should be locked
       if(user.consecutiveFailedAttempts >= 5) {
         await lockUserAccount(user);
-        return res.status(401).json({error: "Account is locked. Please contact an administrator."})
+        return res.status(403).json({error: "Account is locked. Please contact an administrator."})
       }
 
       return res.status(401).json({error: "Invalid Credentials, keep in mind 5 consecutive fails lock your account"})
@@ -123,7 +153,7 @@ res: Response) =>{
      await updateLastLogin(user);
 
       // This is to send HTTP Only cookie
-    res.cookie("token", token, {
+      res.cookie("token", token, {
       path: "/",
       httpOnly: true,
       expires: new Date(Date.now() + 1000 * 86400),
@@ -132,16 +162,16 @@ res: Response) =>{
     });
 
      // Return user information and token
-    res.status(200).json({userId: user._id, token});
+   return res.status(200).json({userId: user._id, token});
   } catch (error) {
     console.log(error);
     return res.status(500).json({error: "Internal Server Error"})
   }
 
-});// Ends of login
+};// Ends of login
 
 //This is an async function called logout
-const logout = asyncHandler(async (req: Request, 
+export const logout = async (req: Request, 
   res: Response) => {
        // This is to send HTTP Only cookie
        res.cookie("token", {
@@ -152,30 +182,32 @@ const logout = asyncHandler(async (req: Request,
         secure: true
       });
       return res.status(200).json({message: "You have logged out successfully"})
-}); //Ends of logout
+}; //Ends of logout
 
 //This is an async function called getUser to get users data
-const getUser = asyncHandler(async (req: Request, res: Response) => {
+export const getUser = async (req: Request, res: Response) => {
+  try {
   const {userId} = req.params
   const user = await User.findById(userId)
 
   if (user) {
     const {_id, email, name, address, phone} = user;
-    res.status(200).json({ _id, email, name, address, phone });
-  } else {
-    res.status(400).json({ error: "User not found" });
+    return res.status(200).json({ _id, email, name, address, phone });
+  }
+  } catch (error) {
+    console.log(error);
+    return res.status(400).json({ error: "User not found" });
   }
   
-
-}); // Ends of getUser 
+}; // Ends of getUser 
 
 //This is an async fuction called loginStatus to Get login status of the user
-const loginStatus = asyncHandler(async (req: Request, res: Response) => {
+export const loginStatus = async (req: Request, res: Response) => {
   const token = req.cookies.token;
 
   // If there is no token, the user is not logged in
   if(!token){
-    return res.json(false).send("You are not logged in, please sign in.")
+    return res.status(401).json({error: "You are not logged in, please sign in."});
   }
   try {
     // Verify the token using the secret
@@ -183,29 +215,48 @@ const loginStatus = asyncHandler(async (req: Request, res: Response) => {
     const verifiedToken = jwt.verify(token, secret );
     // If verification is successful, the user is logged in
     if(verifiedToken){
-      return res.json(true).send("You are logged in");
+      return res.status(200).json({message: "You are logged in"})
     }
     // If verification fails, the user is not logged in
-    return res.json(false).send("You are not logged in, please sign in.");
+    return res.status(401).json({error: "You are not logged in, please sign in."})
   } catch (error) {
     /*If there is any error in the verification process,
      the user is not logged in */
      console.log(error)
-     return res.json(false).send("You are not logged in, please sign in.");
+     return res.status(401).json({error: "You are not logged in, please sign in."})
   }
-}); // Ends of loginStatus
+}; // Ends of loginStatus
 
 //This is an async fuction called updateUser to update the user data
-const updateUser = asyncHandler(async(req: Request, res: Response) => {
+export const updateUser = async(req: Request, res: Response) => {
   const { userId } = req.params;
   const user = await User.findById(userId);
 
   if(user){ 
     const {name, email, phone, address } = user;
     user.email = email;
-    user.name = req.body.name || name;
-    user.phone = req.body.phone || phone;
-    user.address = req.body.address || address;
+    user.name = req.body.name === undefined ? name : req.body.name;
+    user.phone = req.body.phone === undefined ? phone : req.body.phone;
+    user.address = req.body.address === undefined ?  address : req.body.address;
+
+     // Validate user input
+    
+     // Validate user input
+     const emailValidationResult: ValidationResult = emailValidator(email);
+     const phoneValidationResult: ValidationResult = phoneValidator(phone);
+     const addressValidationResult: ValidationResult = addressValidator(address);
+
+     // Check if any validation failed
+     if(
+      !emailValidationResult.isValid || !phoneValidationResult.isValid || !addressValidationResult.isValid ){
+        return res.status(400).json({
+          error: "Invalid inputs",
+          emailValidation: emailValidationResult,
+          phoneValidation: phoneValidationResult,
+          addressValidation: addressValidationResult,
+        });
+      }
+
 
     const updatedUser = await user.save();
     res.status(200).json({
@@ -216,24 +267,33 @@ const updateUser = asyncHandler(async(req: Request, res: Response) => {
       address: updatedUser.address,
     })
   } else {
-    res.status(404)
-    throw new Error("User has not been found");
+    res.status(404).json({error: "User has not been found, please sign up"})
   }
-}) // Ends of updateUser
+} // Ends of updateUser
 
 //This is an async fuction called changePassword to change the user password
-const changePassword = asyncHandler(async (req: Request, res: Response) => {
+export const changePassword = async (req: Request, res: Response) => {
   const { userId } = req.params;
   const {oldPassword, password} = req.body;
+
+   // Validate user input
+   const passwordValidationResult: ValidationResult = passwordValidator(password);
+
+   if (!passwordValidationResult.isValid){
+    return res.status(400).json({
+      errorMessage: "Invalid inputs",
+      passwordValidation: passwordValidationResult,
+    });
+   }
   
   const user = await User.findById(userId);
   if(!user){
-   return res.status(400).send("User not Found, Please sign up");
+   return res.status(404).json({error: "User has not been found, please sign up"});
     
   }
   //This is the validation to change the password
   if(!oldPassword || !password ){
-    return res.status(400).send("Please add existing password and the new password")
+    return res.status(400).json({error: "Please add existing password and the new password"});
     
   }
    //Check if old password is correct or matches in DB
@@ -244,23 +304,35 @@ const changePassword = asyncHandler(async (req: Request, res: Response) => {
       const newHashedPssword = await bcrypt.hash(password, 10);
       user.password = newHashedPssword;
       await user.save();
-      res.status(200).send("Password has been changed successfully");
+     return res.status(200).json({message: "Password has been changed successfully"})
     } else {
-     return res.status(400).send("Invalid Credentials, keep in mind 5 consecutive fails lock your account");
+     return res.status(401).json({error: "Invalid Credentials, keep in mind 5 consecutive fails lock your account"});
     }
 
-}); // Ends of changePassword
+}; // Ends of changePassword
 
 
 
 //This is an async fuction called forgotPassword to reset the user password
-const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
+export const forgotPassword = async (req: Request, res: Response) => {
   const {email} = req.body;
   const user = await User.findOne({email});
 
+   // Validate user input
+   const emailValidationResult: ValidationResult = emailValidator(email);
+
+   if(!emailValidationResult.isValid){
+    return res.status(400).json({
+      error: "Invalid inputs",
+      emailValidation: emailValidationResult,
+    });
+
+   }
+ 
+
+
   if(!user){
-    res.status(404)
-    throw new Error("User do not exist")
+    return res.status(404).json({error: "User do not exist"})
   }
 
   // Delete Token if exists in DB
@@ -317,23 +389,32 @@ const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
 
   try {
     await sendEmail(subject, message, send_to, sent_from,);
-    res.status(200)
+    return res.status(200)
     .json({
       success: true, 
       message: "Please check your email and follow the proccess to reset the password"});
 
   } catch (error) {
-    res.status(500);
-    throw new Error("There was an issue, please try again later");
+   return res.status(500).json({error: "There was an issue, please try again later"})
   }
 
-}); // Ends of forgotPassword
+}; // Ends of forgotPassword
 
 
 // This is an async function called resetPassword
-const resetPassword = asyncHandler(async (req: Request, res: Response) => {
+export const resetPassword = async (req: Request, res: Response) => {
   const { password } = req.body;
   const { resetToken } = req.params;
+
+   // Validate user input
+   const passwordValidationResult: ValidationResult = passwordValidator(password);
+   if(!passwordValidationResult.isValid){
+     return res.status(400).json({
+       error: "Invalid inputs",
+       passwordValidation: passwordValidationResult,
+     });
+
+   }
 
   try {
     const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
@@ -343,12 +424,12 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
 
 
     if (!userToken) {
-      return res.status(404).json({ error: "Invalid token" });
+      return res.status(401).json({ error: "Invalid token" });
     }
 
     // Check if the token is expired
-    if (userToken.expiresAt < Date.now()) {
-      return res.status(400).json({ error: "Token Expired" });
+    if (userToken.expiresAt && userToken.expiresAt.getTime() < Date.now()) {
+      return res.status(401).json({ error: "Token Expired" });
     }
 
     // Retrieve the user based on the token
@@ -381,17 +462,6 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
     console.error(error);
     return res.status(500).json({ error: "Internal Server Error" });
   }
-}); //Ends of resetPassword
+}; //Ends of resetPassword
 
 
-module.exports = {
-  signup,
-  login,
-  logout,
-  getUser,
-  loginStatus,
-  updateUser,
-  changePassword,
-  forgotPassword,
-  resetPassword,
-}

@@ -1,6 +1,6 @@
 import { timeStamp } from "console";
 import mongoose, {Document, Schema} from "mongoose";
-const bcrypt = require("bcryptjs");
+import bcrypt from "bcryptjs";
 
 interface IUser extends Document {
   name: string;

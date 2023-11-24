@@ -8,28 +8,24 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteCartProduct = exports.addProduct = void 0;
-const express_async_handler_1 = __importDefault(require("express-async-handler"));
 const cartModel_1 = require("../model/cartModel");
 // This is an async function called addProduct
-const addProduct = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const addProduct = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         //destrocturing from Cart Schema Model ICartItem, ICart
         const { userId, nameUser, product, quantity, } = req.body;
         // Check if userId, nameUser, product, and quantity are present
         if (!userId || !nameUser || !product || !quantity) {
-            res.status(400).send("Please provide all required fields, including nameUser");
-            return; // Return to stop further execution
+            return res.status(400).send("Please provide all required fields, including nameUser");
+            // Return to stop further execution
         }
         // Finding an user in cart in the Cart Schema
         let cart = yield cartModel_1.Cart.findOne({ user: userId, nameUser });
         if (!userId && !nameUser) {
-            res.status(400).send("Please add all fields required");
-            return; // Return to stop further execution
+            return res.status(400).send("Please add all fields required");
+            // Return to stop further execution
         }
         if (!cart) {
             // If there's no cart with the userId create a new cart
@@ -80,26 +76,24 @@ const addProduct = (0, express_async_handler_1.default)((req, res) => __awaiter(
     }
     catch (error) {
         console.log(error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        return res.status(500).json({ error: 'Internal Server Error' });
     }
-})); // Ends of addProduct
+}); // Ends of addProduct
 exports.addProduct = addProduct;
 // This is an async function called deleteCartProduct
-const deleteCartProduct = (0, express_async_handler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const deleteCartProduct = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
     const { product, quantityToRemove = 1 } = req.body;
     try {
         // Find the cart by ID and remove the product from the items array
         let cart = yield cartModel_1.Cart.findById(id);
         if (!cart) {
-            res.status(404).json({ error: `Product with id:${id} not found in cart` });
-            return;
+            return res.status(404).json({ error: `Product with id:${id} not found in cart` });
         }
         // Find the item in the cart with the specified product ID
         const cartItem = cart.items.find(item => item.product.equals(product._id));
         if (!cartItem) {
-            res.status(404).json({ error: `Product with id:${product._id} not found in the cart with id:${id}` });
-            return;
+            return res.status(404).json({ error: `Product with id:${product._id} not found in the cart with id:${id}` });
         }
         /* Check if the quantity to remove is greater than or equal to the item's quantity */
         if (quantityToRemove >= cartItem.quantity) {
@@ -116,11 +110,11 @@ const deleteCartProduct = (0, express_async_handler_1.default)((req, res) => __a
         cart.subTotal = cart.items.reduce((acc, item) => acc + (item.subTotal || 0), 0);
         cart.total = cart.items.reduce((acc, item) => acc + (item.total || 0), 0);
         yield cart.save();
-        res.status(200).json({ message: `Successfully removed ${quantityToRemove} ${product.name} (s) from the shopping cart` });
+        return res.status(200).json({ message: `Successfully removed ${quantityToRemove} ${product.name} (s) from the shopping cart` });
     }
     catch (error) {
         console.log(error);
-        res.status(500).json({ error: "Internal Server Error" });
+        return res.status(500).json({ error: "Internal Server Error" });
     }
-})); // Ends of deleteCartProduct
+}); // Ends of deleteCartProduct
 exports.deleteCartProduct = deleteCartProduct;

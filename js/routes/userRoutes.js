@@ -1,17 +1,19 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-const express = require("express");
-const User = require("../model/userModel");
-const { signup, login, logout, getUser, loginStatus, updateUser, changePassword, forgotPassword, resetPassword } = require("../controller/userController");
+const express_1 = __importDefault(require("express"));
+const userController_1 = require("../controller/userController");
 //Routes
-const routerUser = express.Router();
-routerUser.post("/signup", signup);
-routerUser.post("/login", login);
-routerUser.get("/logout", logout);
-routerUser.get("/getuser/:userId", getUser);
-routerUser.get("/loggedin", loginStatus);
-routerUser.patch("/updateuser/:userId", updateUser);
-routerUser.patch("/changepassword/:userId", changePassword);
-routerUser.post("/forgotpassword", forgotPassword);
-routerUser.put("/resetpassword/:resetToken", resetPassword);
+const routerUser = express_1.default.Router();
+routerUser.post("/signup", userController_1.signup);
+routerUser.post("/login", userController_1.login);
+routerUser.get("/logout", userController_1.logout);
+routerUser.get("/getuser/:userId", userController_1.getUser);
+routerUser.get("/loggedin", userController_1.loginStatus);
+routerUser.patch("/updateuser/:userId", userController_1.updateUser);
+routerUser.patch("/changepassword/:userId", userController_1.changePassword);
+routerUser.post("/forgotpassword", userController_1.forgotPassword);
+routerUser.put("/resetpassword/:resetToken", userController_1.resetPassword);
 exports.default = routerUser;

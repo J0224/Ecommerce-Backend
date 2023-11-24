@@ -1,6 +1,6 @@
-const express = require("express");
-const User = require("../model/userModel");
-const { 
+import express from "express";
+import verifyToken from "../midleware/authMidleware";
+ import { 
    signup,
    login, 
    logout, 
@@ -10,7 +10,7 @@ const {
    changePassword,
    forgotPassword,
    resetPassword
- } = require("../controller/userController");
+ } from "../controller/userController";
 
 
 //Routes
@@ -24,6 +24,6 @@ routerUser.get("/loggedin", loginStatus);
 routerUser.patch("/updateuser/:userId", updateUser);
 routerUser.patch("/changepassword/:userId", changePassword);
 routerUser.post("/forgotpassword", forgotPassword);
-routerUser.put("/resetpassword/:resetToken",  resetPassword);
+routerUser.put("/resetpassword/:resetToken", resetPassword);
 
 export default routerUser;

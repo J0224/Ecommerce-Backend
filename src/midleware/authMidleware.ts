@@ -1,21 +1,21 @@
 import {Request, Response, NextFunction} from "express";
 import jwt from "jsonwebtoken";
 import User from "../model/userModel";
-const asyncHandler = require("express-async-handler");
+import {IUser} from "../model/userModel";
 
 // Extend the Request object to include a 'user' property
 interface AuthRequest extends Request {
-  user?: {}
+  user?: IUser | null; // Use IUser | null 
 }
 
 //This is an async function called verifyToken
-const verifyToken =  asyncHandler(async (req: AuthRequest, 
-   res: Response, next: NextFunction) =>{
+const verifyToken = async (req: AuthRequest, 
+   res: Response) =>{
     try {
       const token = req.cookies.token
       if(!token){
-        res.status(401)//unathorize user
-        throw new Error("No authorized, please signup")
+        return res.status(401).json({error: "No authorized, please signup"})
+        
       }
        
       //verify token
@@ -23,19 +23,18 @@ const verifyToken =  asyncHandler(async (req: AuthRequest,
       //get user id from token
       const user = await User.findById(verified.id).select("-nopassword");
       if (!user){
-        res.status(401)
-        throw new Error("No user found") 
+       return res.status(401).json({error: "No user found"});
+       
       }
       req.user = user
-      next()
+    
 
 
     } catch (error) {
-      res.status(401);
-      throw new Error("No user found") 
+     return res.status(401).json({error: "Authentication failed"})
     }
   
 
-}); // Ends of verifyToken
+}; // Ends of verifyToken
 
-module.exports = verifyToken
+export default verifyToken

@@ -1,7 +1,6 @@
 import express from 'express';
-const productModel = require("../model/productModel")
-const cartModel = require("../model/cartModel");
-const {addProduct, deleteCartProduct} = require("../controller/cartController");
+
+import {addProduct, deleteCartProduct} from "../controller/cartController";
 
 const routerCart = express.Router();
 

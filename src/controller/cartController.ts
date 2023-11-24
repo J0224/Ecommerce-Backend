@@ -1,12 +1,11 @@
 import asyncHandler from 'express-async-handler';
 import { Cart, ICartItem } from '../model/cartModel';
 import { Request, Response,} from 'express';
-import Product from '../model/productModel';
 import  mongoose  from 'mongoose';
 
 
 // This is an async function called addProduct
-const addProduct = asyncHandler(async (req: Request,
+const addProduct = async (req: Request,
        res: Response) => {
   try {
     //destrocturing from Cart Schema Model ICartItem, ICart
@@ -23,16 +22,16 @@ const addProduct = asyncHandler(async (req: Request,
     
      // Check if userId, nameUser, product, and quantity are present
      if (!userId || !nameUser || !product || !quantity) {
-      res.status(400).send("Please provide all required fields, including nameUser");
-      return; // Return to stop further execution
+     return res.status(400).send("Please provide all required fields, including nameUser");
+      // Return to stop further execution
     }
     
     // Finding an user in cart in the Cart Schema
     let cart = await Cart.findOne({ user: userId, nameUser });
     
     if (!userId && !nameUser){
-       res.status(400).send("Please add all fields required")
-       return; // Return to stop further execution
+       return res.status(400).send("Please add all fields required")
+       // Return to stop further execution
     }
 
     if (!cart) {
@@ -86,12 +85,12 @@ const addProduct = asyncHandler(async (req: Request,
 
   } catch (error) {
     console.log(error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
-}); // Ends of addProduct
+}; // Ends of addProduct
 
 // This is an async function called deleteCartProduct
-const deleteCartProduct = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+const deleteCartProduct = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { product, quantityToRemove = 1 } = req.body as {
     product: {
@@ -107,15 +106,15 @@ const deleteCartProduct = asyncHandler(async (req: Request, res: Response): Prom
     let cart = await Cart.findById(id);
 
     if (!cart) {
-      res.status(404).json({ error: `Product with id:${id} not found in cart` });
-      return;
+     return res.status(404).json({ error: `Product with id:${id} not found in cart` });
+      
     }
     // Find the item in the cart with the specified product ID
     const cartItem: ICartItem | undefined = cart.items.find(item => item.product.equals(product._id));
 
     if(!cartItem){
-      res.status(404).json({error: `Product with id:${product._id} not found in the cart with id:${id}`});
-      return;
+   return  res.status(404).json({error: `Product with id:${product._id} not found in the cart with id:${id}`});
+     
     }
 
     /* Check if the quantity to remove is greater than or equal to the item's quantity */
@@ -135,11 +134,11 @@ const deleteCartProduct = asyncHandler(async (req: Request, res: Response): Prom
 
     await cart.save();
 
-    res.status(200).json({ message: `Successfully removed ${quantityToRemove} ${product.name} (s) from the shopping cart` });
+   return res.status(200).json({ message: `Successfully removed ${quantityToRemove} ${product.name} (s) from the shopping cart` });
   } catch (error) {
     console.log(error);
-    res.status(500).json({ error: "Internal Server Error" });
+   return res.status(500).json({ error: "Internal Server Error" });
   }
-}); // Ends of deleteCartProduct
+}; // Ends of deleteCartProduct
 
 export { addProduct, deleteCartProduct };

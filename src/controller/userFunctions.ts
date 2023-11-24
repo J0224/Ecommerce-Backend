@@ -1,7 +1,4 @@
-// userFunctions.ts
-
 import   {IUser } from "../model/userModel";
-import User from "../model/userModel"
 
 /* This is an async fuction called  
 incrementConsecutiveFailedAttempts   */

@@ -12,37 +12,48 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.resetPassword = exports.forgotPassword = exports.changePassword = exports.updateUser = exports.loginStatus = exports.getUser = exports.logout = exports.login = exports.signup = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const userModel_1 = __importDefault(require("../model/userModel"));
-const asyncHandler = require("express-async-handler");
-const express = require("express");
-const Token = require("../model/tokenModel");
-const crypto = require("crypto");
+const tokenModel_1 = __importDefault(require("../model/tokenModel"));
+const crypto_1 = __importDefault(require("crypto"));
 const sendEmail_1 = __importDefault(require("../utils/sendEmail"));
 const userFunctions_1 = require("./userFunctions");
+const validation_1 = require("../utils/validation");
 //This is a function called genarateToken for users
 const genarateToken = (userId) => {
     const secret = process.env.JWT_SECRET || "";
     return jsonwebtoken_1.default.sign({ userId }, secret, { expiresIn: "1d" });
 };
 //This is an async function called signup
-const signup = asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const signup = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         //Destructuring 
         const { name, email, password, phone, address } = req.body;
+        // Validate user input
+        const emailValidationResult = (0, validation_1.emailValidator)(email);
+        const passwordValidationResult = (0, validation_1.passwordValidator)(password);
+        const phoneValidationResult = (0, validation_1.phoneValidator)(phone);
+        const addressValidationResult = (0, validation_1.addressValidator)(address);
+        // Check if any validation failed
+        if (!emailValidationResult.isValid || !passwordValidationResult.isValid || !phoneValidationResult.isValid || !addressValidationResult.isValid) {
+            return res.status(400).json({
+                error: "Invalid inputs",
+                emailValidation: emailValidationResult,
+                passwordValidation: passwordValidationResult,
+                phoneValidation: phoneValidationResult,
+                addressValidation: addressValidationResult,
+            });
+        }
         // Check if the user already exists
         const existingUser = yield userModel_1.default.findOne({ email });
         if (existingUser) {
-            return res.status(401).json({ error: "User already exists" });
+            return res.status(409).json({ error: "User already exists" });
         }
         // Check if all fields are present
         if (!name || !email || !password || !phone || !address) {
             return res.status(400).json({ error: "Please fill out all field required" });
-        }
-        if (password.length < 6) {
-            res.status(400);
-            throw new Error("PLease password must be at lest 6 charaters");
         }
         // Hash the password before saving it or creating new user
         const hashPassword = yield bcryptjs_1.default.hash(password, 10);
@@ -72,11 +83,22 @@ const signup = asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, func
         console.log(error);
         return res.status(500).json({ error: "Internal Server Error" });
     }
-})); // Ends of sygnup
+}); // Ends of sygnup
+exports.signup = signup;
 //This is an async function called login
-const login = asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const login = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { email, password } = req.body;
+        // Validate user input
+        const emailValidationResult = (0, validation_1.emailValidator)(email);
+        const passwordValidationResult = (0, validation_1.passwordValidator)(password);
+        if (!emailValidationResult.isValid || !passwordValidationResult.isValid) {
+            return res.status(400).json({
+                error: "Invalid inputs",
+                emailValidation: emailValidationResult,
+                passwordValidation: passwordValidationResult,
+            });
+        }
         // Find the user by email
         const user = yield userModel_1.default.findOne({ email });
         if (!user) {
@@ -84,7 +106,7 @@ const login = asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, funct
         }
         // Check if the user is locked
         if (user.isLocked) {
-            return res.status(401).json({ error: "Account is locked. Please contact an administrator." });
+            return res.status(403).json({ error: "Account is locked. Please contact an administrator." });
         }
         // Compare the provided password with the stored hashed password
         const isPasswordValid = yield bcryptjs_1.default.compare(password, user.password);
@@ -94,7 +116,7 @@ const login = asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, funct
             // Check if the user should be locked
             if (user.consecutiveFailedAttempts >= 5) {
                 yield (0, userFunctions_1.lockUserAccount)(user);
-                return res.status(401).json({ error: "Account is locked. Please contact an administrator." });
+                return res.status(403).json({ error: "Account is locked. Please contact an administrator." });
             }
             return res.status(401).json({ error: "Invalid Credentials, keep in mind 5 consecutive fails lock your account" });
         }
@@ -113,15 +135,16 @@ const login = asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, funct
             secure: true
         });
         // Return user information and token
-        res.status(200).json({ userId: user._id, token });
+        return res.status(200).json({ userId: user._id, token });
     }
     catch (error) {
         console.log(error);
         return res.status(500).json({ error: "Internal Server Error" });
     }
-})); // Ends of login
+}); // Ends of login
+exports.login = login;
 //This is an async function called logout
-const logout = asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const logout = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     // This is to send HTTP Only cookie
     res.cookie("token", {
         path: "/",
@@ -131,25 +154,30 @@ const logout = asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, func
         secure: true
     });
     return res.status(200).json({ message: "You have logged out successfully" });
-})); //Ends of logout
+}); //Ends of logout
+exports.logout = logout;
 //This is an async function called getUser to get users data
-const getUser = asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { userId } = req.params;
-    const user = yield userModel_1.default.findById(userId);
-    if (user) {
-        const { _id, email, name, address, phone } = user;
-        res.status(200).json({ _id, email, name, address, phone });
+const getUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { userId } = req.params;
+        const user = yield userModel_1.default.findById(userId);
+        if (user) {
+            const { _id, email, name, address, phone } = user;
+            return res.status(200).json({ _id, email, name, address, phone });
+        }
     }
-    else {
-        res.status(400).json({ error: "User not found" });
+    catch (error) {
+        console.log(error);
+        return res.status(400).json({ error: "User not found" });
     }
-})); // Ends of getUser 
+}); // Ends of getUser 
+exports.getUser = getUser;
 //This is an async fuction called loginStatus to Get login status of the user
-const loginStatus = asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const loginStatus = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const token = req.cookies.token;
     // If there is no token, the user is not logged in
     if (!token) {
-        return res.json(false).send("You are not logged in, please sign in.");
+        return res.status(401).json({ error: "You are not logged in, please sign in." });
     }
     try {
         // Verify the token using the secret
@@ -157,28 +185,43 @@ const loginStatus = asyncHandler((req, res) => __awaiter(void 0, void 0, void 0,
         const verifiedToken = jsonwebtoken_1.default.verify(token, secret);
         // If verification is successful, the user is logged in
         if (verifiedToken) {
-            return res.json(true).send("You are logged in");
+            return res.status(200).json({ message: "You are logged in" });
         }
         // If verification fails, the user is not logged in
-        return res.json(false).send("You are not logged in, please sign in.");
+        return res.status(401).json({ error: "You are not logged in, please sign in." });
     }
     catch (error) {
         /*If there is any error in the verification process,
          the user is not logged in */
         console.log(error);
-        return res.json(false).send("You are not logged in, please sign in.");
+        return res.status(401).json({ error: "You are not logged in, please sign in." });
     }
-})); // Ends of loginStatus
+}); // Ends of loginStatus
+exports.loginStatus = loginStatus;
 //This is an async fuction called updateUser to update the user data
-const updateUser = asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const updateUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { userId } = req.params;
     const user = yield userModel_1.default.findById(userId);
     if (user) {
         const { name, email, phone, address } = user;
         user.email = email;
-        user.name = req.body.name || name;
-        user.phone = req.body.phone || phone;
-        user.address = req.body.address || address;
+        user.name = req.body.name === undefined ? name : req.body.name;
+        user.phone = req.body.phone === undefined ? phone : req.body.phone;
+        user.address = req.body.address === undefined ? address : req.body.address;
+        // Validate user input
+        // Validate user input
+        const emailValidationResult = (0, validation_1.emailValidator)(email);
+        const phoneValidationResult = (0, validation_1.phoneValidator)(phone);
+        const addressValidationResult = (0, validation_1.addressValidator)(address);
+        // Check if any validation failed
+        if (!emailValidationResult.isValid || !phoneValidationResult.isValid || !addressValidationResult.isValid) {
+            return res.status(400).json({
+                error: "Invalid inputs",
+                emailValidation: emailValidationResult,
+                phoneValidation: phoneValidationResult,
+                addressValidation: addressValidationResult,
+            });
+        }
         const updatedUser = yield user.save();
         res.status(200).json({
             _id: updatedUser._id,
@@ -189,21 +232,29 @@ const updateUser = asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, 
         });
     }
     else {
-        res.status(404);
-        throw new Error("User has not been found");
+        res.status(404).json({ error: "User has not been found, please sign up" });
     }
-})); // Ends of updateUser
+}); // Ends of updateUser
+exports.updateUser = updateUser;
 //This is an async fuction called changePassword to change the user password
-const changePassword = asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const changePassword = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { userId } = req.params;
     const { oldPassword, password } = req.body;
+    // Validate user input
+    const passwordValidationResult = (0, validation_1.passwordValidator)(password);
+    if (!passwordValidationResult.isValid) {
+        return res.status(400).json({
+            errorMessage: "Invalid inputs",
+            passwordValidation: passwordValidationResult,
+        });
+    }
     const user = yield userModel_1.default.findById(userId);
     if (!user) {
-        return res.status(400).send("User not Found, Please sign up");
+        return res.status(404).json({ error: "User has not been found, please sign up" });
     }
     //This is the validation to change the password
     if (!oldPassword || !password) {
-        return res.status(400).send("Please add existing password and the new password");
+        return res.status(400).json({ error: "Please add existing password and the new password" });
     }
     //Check if old password is correct or matches in DB
     const passwordIsCorrect = yield bcryptjs_1.default.compare(oldPassword, user.password);
@@ -212,34 +263,42 @@ const changePassword = asyncHandler((req, res) => __awaiter(void 0, void 0, void
         const newHashedPssword = yield bcryptjs_1.default.hash(password, 10);
         user.password = newHashedPssword;
         yield user.save();
-        res.status(200).send("Password has been changed successfully");
+        return res.status(200).json({ message: "Password has been changed successfully" });
     }
     else {
-        return res.status(400).send("Invalid Credentials, keep in mind 5 consecutive fails lock your account");
+        return res.status(401).json({ error: "Invalid Credentials, keep in mind 5 consecutive fails lock your account" });
     }
-})); // Ends of changePassword
+}); // Ends of changePassword
+exports.changePassword = changePassword;
 //This is an async fuction called forgotPassword to reset the user password
-const forgotPassword = asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const forgotPassword = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { email } = req.body;
     const user = yield userModel_1.default.findOne({ email });
+    // Validate user input
+    const emailValidationResult = (0, validation_1.emailValidator)(email);
+    if (!emailValidationResult.isValid) {
+        return res.status(400).json({
+            error: "Invalid inputs",
+            emailValidation: emailValidationResult,
+        });
+    }
     if (!user) {
-        res.status(404);
-        throw new Error("User do not exist");
+        return res.status(404).json({ error: "User do not exist" });
     }
     // Delete Token if exists in DB
-    let token = yield Token.findOne({ userId: user._id });
+    let token = yield tokenModel_1.default.findOne({ userId: user._id });
     if (token) {
         yield token.deleteOne();
     }
     //Create reset token
-    let resetToken = crypto.randomBytes(32).toString("hex") + user._id;
+    let resetToken = crypto_1.default.randomBytes(32).toString("hex") + user._id;
     //Hash Token before saving to DB
-    const hashedToken = crypto
+    const hashedToken = crypto_1.default
         .createHash("sha256")
         .update(resetToken)
         .digest("hex");
     //Save token to DB
-    yield new Token({
+    yield new tokenModel_1.default({
         userId: user._id,
         token: hashedToken,
         createdAt: Date.now(),
@@ -272,31 +331,39 @@ const forgotPassword = asyncHandler((req, res) => __awaiter(void 0, void 0, void
     const sent_from = process.env.EMAIL_USER;
     try {
         yield (0, sendEmail_1.default)(subject, message, send_to, sent_from);
-        res.status(200)
+        return res.status(200)
             .json({
             success: true,
             message: "Please check your email and follow the proccess to reset the password"
         });
     }
     catch (error) {
-        res.status(500);
-        throw new Error("There was an issue, please try again later");
+        return res.status(500).json({ error: "There was an issue, please try again later" });
     }
-})); // Ends of forgotPassword
+}); // Ends of forgotPassword
+exports.forgotPassword = forgotPassword;
 // This is an async function called resetPassword
-const resetPassword = asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const resetPassword = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { password } = req.body;
     const { resetToken } = req.params;
+    // Validate user input
+    const passwordValidationResult = (0, validation_1.passwordValidator)(password);
+    if (!passwordValidationResult.isValid) {
+        return res.status(400).json({
+            error: "Invalid inputs",
+            passwordValidation: passwordValidationResult,
+        });
+    }
     try {
-        const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+        const hashedToken = crypto_1.default.createHash("sha256").update(resetToken).digest("hex");
         // Retrieve the token from the database
-        const userToken = yield Token.findOne({ token: hashedToken });
+        const userToken = yield tokenModel_1.default.findOne({ token: hashedToken });
         if (!userToken) {
-            return res.status(404).json({ error: "Invalid token" });
+            return res.status(401).json({ error: "Invalid token" });
         }
         // Check if the token is expired
-        if (userToken.expiresAt < Date.now()) {
-            return res.status(400).json({ error: "Token Expired" });
+        if (userToken.expiresAt && userToken.expiresAt.getTime() < Date.now()) {
+            return res.status(401).json({ error: "Token Expired" });
         }
         // Retrieve the user based on the token
         const user = yield userModel_1.default.findById(userToken.userId);
@@ -304,7 +371,7 @@ const resetPassword = asyncHandler((req, res) => __awaiter(void 0, void 0, void 
             return res.status(404).json({ error: "User not found please sign up" });
         }
         // Save token to DB
-        yield new Token({
+        yield new tokenModel_1.default({
             userId: user._id,
             token: hashedToken,
             createdAt: Date.now(),
@@ -323,15 +390,5 @@ const resetPassword = asyncHandler((req, res) => __awaiter(void 0, void 0, void 
         console.error(error);
         return res.status(500).json({ error: "Internal Server Error" });
     }
-})); //Ends of resetPassword
-module.exports = {
-    signup,
-    login,
-    logout,
-    getUser,
-    loginStatus,
-    updateUser,
-    changePassword,
-    forgotPassword,
-    resetPassword,
-};
+}); //Ends of resetPassword
+exports.resetPassword = resetPassword;

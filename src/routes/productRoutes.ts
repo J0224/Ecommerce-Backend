@@ -1,6 +1,5 @@
 import express from 'express';
-const productModel = require("../model/productModel");
-const { createProduct, getProducts, updateProduct, deleteProduct, getSingleProduct } = require("../controller/productController");
+import { createProduct, getProducts, updateProduct, deleteProduct, getSingleProduct }from "../controller/productController";
 
 
 const router = express.Router();

@@ -1,17 +1,13 @@
-const asyncHandler = require("express-async-handler");
-const Product = require("../model/productModel").default;
-const jwt = require ("jsonwebtoken");
+import Product from "../model/productModel";
 import { Request, Response } from 'express';
-import { send } from 'process';
-
 
 //this is an asyngc fuction called createProduct
- const createProduct = asyncHandler(async (req: Request, 
+ const createProduct = async (req: Request, 
   res: Response) => {
   const { name, description, price, img } = req.body;
 
   if (!name || !description || !price || !img){
-    return res.status(404).send({message: "Please add all fields required"})
+    return res.status(404).json({message: "Please add all fields required"});
   }
 
   try {
@@ -28,10 +24,10 @@ import { send } from 'process';
     console.error(error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
-}); //Ends of createProduct
+}; //Ends of createProduct
 
 //this is an asyngc fuction called getProducts
- const getProducts = asyncHandler (async (req:Request, 
+ const getProducts = async (req:Request, 
   res:Response) => {
     try {
       const products = await Product.find();
@@ -45,16 +41,16 @@ import { send } from 'process';
       
     }
 
-}); //Ends of getProduct
+}; //Ends of getProduct
 
 // this is an async function called getSingleProduct
-const getSingleProduct = asyncHandler(async (req:Request, 
+const getSingleProduct = async (req:Request, 
   res:Response) =>{
     const {id} = req.params;
     try {
       const getOneProduct = await Product.findById(id);
       if(!getOneProduct){
-        res.status(404).send({message:  `Product not found, Id: ${id} not exist`});
+        res.status(404).json({message:  `Product not found, Id: ${id} not exist`});
       } 
       return res.status(200).json(getOneProduct);
       
@@ -62,10 +58,10 @@ const getSingleProduct = asyncHandler(async (req:Request,
       console.log(error)
       res.status(500).json({error: "Internal Server Error"})
     }
-}); //Ends of getSingleProduct
+}; //Ends of getSingleProduct
 
 // this is an async function called updateProduct 
-const updateProduct = asyncHandler(async (req:Request, 
+const updateProduct = async (req:Request, 
   res:Response) =>{
     const {id} = req.params;
     const { name, description, price, img } = req.body;
@@ -83,10 +79,10 @@ const updateProduct = asyncHandler(async (req:Request,
 
     }
 
-}); //Ends of updateProduct
+}; //Ends of updateProduct
 
 // this is an async function called deleteProduct
-const deleteProduct = asyncHandler(async (req:Request, res:Response) => {
+const deleteProduct = async (req:Request, res:Response) => {
   const {id} = req.params;
   
   try {
@@ -94,19 +90,20 @@ const deleteProduct = asyncHandler(async (req:Request, res:Response) => {
     if(!deleteProduct){
       return res.status(404).json({error: `Product with id:${id} not found`});
     }
-    res.status(200).send({message:"Product has been deleted successfully"})
+    res.status(200).json({message:"Product has been deleted successfully"});
+
   } catch (error) {
     console.log(error)
-    res.status(500).json("Internal Server Error")
+    res.status(500).json({error: "Internal Server Error"})
   }
 
-}); //Ends of deleteProduct
+}; //Ends of deleteProduct
 
 
 /*Here I am Exporting the functions that I created for the CRUD
 So that we can use them in the routes folder and everywhere we want*/
 
-module.exports = {
+export {
   createProduct,
   getProducts,
   updateProduct,

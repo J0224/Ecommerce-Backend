@@ -8,18 +8,20 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-const asyncHandler = require("express-async-handler");
-const Product = require("../model/productModel").default;
-const jwt = require("jsonwebtoken");
+exports.getSingleProduct = exports.deleteProduct = exports.updateProduct = exports.getProducts = exports.createProduct = void 0;
+const productModel_1 = __importDefault(require("../model/productModel"));
 //this is an asyngc fuction called createProduct
-const createProduct = asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const createProduct = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { name, description, price, img } = req.body;
     if (!name || !description || !price || !img) {
-        return res.status(404).send({ message: "Please add all fields required" });
+        return res.status(404).json({ message: "Please add all fields required" });
     }
     try {
-        const newProduct = new Product({
+        const newProduct = new productModel_1.default({
             name,
             description,
             price,
@@ -32,11 +34,12 @@ const createProduct = asyncHandler((req, res) => __awaiter(void 0, void 0, void 
         console.error(error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
-})); //Ends of createProduct
+}); //Ends of createProduct
+exports.createProduct = createProduct;
 //this is an asyngc fuction called getProducts
-const getProducts = asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const getProducts = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const products = yield Product.find();
+        const products = yield productModel_1.default.find();
         if (!products) {
             return res.status(404).send({ message: "There was not product found" });
         }
@@ -46,14 +49,15 @@ const getProducts = asyncHandler((req, res) => __awaiter(void 0, void 0, void 0,
         console.log(error);
         res.status(500).json({ error: "Internal Server Error" });
     }
-})); //Ends of getProduct
+}); //Ends of getProduct
+exports.getProducts = getProducts;
 // this is an async function called getSingleProduct
-const getSingleProduct = asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const getSingleProduct = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
     try {
-        const getOneProduct = yield Product.findById(id);
+        const getOneProduct = yield productModel_1.default.findById(id);
         if (!getOneProduct) {
-            res.status(404).send({ message: `Product not found, Id: ${id} not exist` });
+            res.status(404).json({ message: `Product not found, Id: ${id} not exist` });
         }
         return res.status(200).json(getOneProduct);
     }
@@ -61,13 +65,14 @@ const getSingleProduct = asyncHandler((req, res) => __awaiter(void 0, void 0, vo
         console.log(error);
         res.status(500).json({ error: "Internal Server Error" });
     }
-})); //Ends of getSingleProduct
+}); //Ends of getSingleProduct
+exports.getSingleProduct = getSingleProduct;
 // this is an async function called updateProduct 
-const updateProduct = asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const updateProduct = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
     const { name, description, price, img } = req.body;
     try {
-        const updateProduct = yield Product.findByIdAndUpdate(id, { name, description, price, img }, { new: true });
+        const updateProduct = yield productModel_1.default.findByIdAndUpdate(id, { name, description, price, img }, { new: true });
         if (!updateProduct) {
             return res.status(404).json({ error: "Product Not Found" });
         }
@@ -77,28 +82,21 @@ const updateProduct = asyncHandler((req, res) => __awaiter(void 0, void 0, void 
         console.log(error);
         res.status(500).json({ error: "Interna Server Error" });
     }
-})); //Ends of updateProduct
+}); //Ends of updateProduct
+exports.updateProduct = updateProduct;
 // this is an async function called deleteProduct
-const deleteProduct = asyncHandler((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const deleteProduct = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
     try {
-        const deleteProduct = yield Product.findByIdAndDelete(id);
+        const deleteProduct = yield productModel_1.default.findByIdAndDelete(id);
         if (!deleteProduct) {
             return res.status(404).json({ error: `Product with id:${id} not found` });
         }
-        res.status(200).send({ message: "Product has been deleted successfully" });
+        res.status(200).json({ message: "Product has been deleted successfully" });
     }
     catch (error) {
         console.log(error);
-        res.status(500).json("Internal Server Error");
+        res.status(500).json({ error: "Internal Server Error" });
     }
-})); //Ends of deleteProduct
-/*Here I am Exporting the functions that I created for the CRUD
-So that we can use them in the routes folder and everywhere we want*/
-module.exports = {
-    createProduct,
-    getProducts,
-    updateProduct,
-    deleteProduct,
-    getSingleProduct,
-};
+}); //Ends of deleteProduct
+exports.deleteProduct = deleteProduct;
