@@ -1,6 +1,6 @@
 import sgMail from "@sendgrid/mail";
 import dotenv from "dotenv";
-const asyncHandler = require ("express-async-handler")
+const asyncHandler = require ("express-async-handler");
 
 dotenv.config();
 

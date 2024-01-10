@@ -29,12 +29,9 @@ const userSchema = new mongoose_1.Schema({
         type: String,
         required: [true, "Please add a name"]
     },
-    address: {
+    lastName: {
         type: String,
-        required: [true, "Please add an address"]
-    },
-    phone: {
-        type: String,
+        required: [true, "Please add Last Name"]
     },
     email: {
         type: String,
@@ -46,10 +43,34 @@ const userSchema = new mongoose_1.Schema({
             "Please add a valid email address"
         ]
     },
+    phone: {
+        type: String,
+        required: [true, "Please add an phone number"]
+    },
+    streetAddress: {
+        type: String,
+        required: [true, "Please add an street address"]
+    },
+    city: {
+        type: String,
+        required: [true, "Please add a city"],
+    },
+    state: {
+        type: String,
+        required: [true, "Please add a state"],
+    },
+    zipCode: {
+        type: String,
+        required: [true, "Please add a ZIP Code"],
+    },
     password: {
         type: String,
         required: [true, "Please add password"],
         minlength: [6, "Password must be at least 6 characters"]
+    },
+    role: {
+        type: String,
+        default: "customer",
     },
     consecutiveFailedAttempts: {
         type: Number,
@@ -62,7 +83,7 @@ const userSchema = new mongoose_1.Schema({
     lastLogin: {
         type: Date,
         default: null,
-    }
+    },
 }, { timestamps: true });
 const User = mongoose_1.default.model("User", userSchema);
 exports.default = User;

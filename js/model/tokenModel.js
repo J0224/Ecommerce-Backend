@@ -7,20 +7,22 @@ const mongoose_1 = __importDefault(require("mongoose"));
 const tokenSchema = new mongoose_1.default.Schema({
     userId: {
         type: mongoose_1.default.Schema.Types.ObjectId,
-        require: true,
+        required: true,
         ref: "user",
     },
     token: {
         type: String,
-        require: true,
+        required: true,
+        unique: true,
     },
     createdAt: {
         type: Date,
-        require: true,
+        default: Date.now,
+        required: true,
     },
     expiresAt: {
         type: Date,
-        require: true,
+        required: true,
     }
 });
 const Token = mongoose_1.default.model("Token", tokenSchema);

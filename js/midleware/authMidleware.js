@@ -13,25 +13,27 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const userModel_1 = __importDefault(require("../model/userModel"));
-//This is an async function called verifyToken
-const verifyToken = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const adminModel_1 = __importDefault(require("../model/adminModel"));
+const verifyToken = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const token = req.cookies.token;
+        // Check for the token in headers
+        const token = req.headers.authorization && req.headers.authorization.split(" ")[1];
         if (!token) {
             return res.status(401).json({ error: "No authorized, please signup" });
         }
-        //verify token
         const verified = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET || "");
-        //get user id from token
-        const user = yield userModel_1.default.findById(verified.id).select("-nopassword");
-        if (!user) {
+        const admin = yield adminModel_1.default.findById(verified.adminId).select("-nopassword");
+        if (!admin) {
             return res.status(401).json({ error: "No user found" });
         }
-        req.user = user;
+        req.admin = admin;
+        if (admin.role === "admin") {
+            return next();
+        }
+        return res.status(403).json({ error: "Permission denied" });
     }
     catch (error) {
         return res.status(401).json({ error: "Authentication failed" });
     }
-}); // Ends of verifyToken
+});
 exports.default = verifyToken;

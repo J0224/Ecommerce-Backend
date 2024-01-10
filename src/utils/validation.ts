@@ -1,11 +1,9 @@
 import { type } from "os";
 
-
 export type ValidationResult = {
   isValid: boolean;
   errorMessage?: string;
 }
-
 
 export function emailValidator(email: string): ValidationResult {
   if (!email){
@@ -18,14 +16,13 @@ export function emailValidator(email: string): ValidationResult {
    if (!emailRegex.test(email.trim())) {
     return {isValid: false, errorMessage: "Please add a valid format email" };
    } else {
-    return {isValid: true}
+    return {isValid: true};
    }
 } // Ends of emailValidator
 
-
 export function passwordValidator(password: string): ValidationResult {
   if(!password){
-    return {isValid: false, errorMessage: "Passord is required"};
+    return {isValid: false, errorMessage: "Password is required"};
   } else if (password.length < 6){
     return {isValid: false, errorMessage: "Password must have at least 6 characters"};
   } else {
@@ -35,22 +32,16 @@ export function passwordValidator(password: string): ValidationResult {
     const hasDigit = /\d/.test(password);
     const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
 
-    console.log('hasUpperCase:', hasUpperCase);
-    console.log('hasLowerCase:', hasLowerCase);
-    console.log('hasDigit:', hasDigit);
-    console.log('hasSpecialChar:', hasSpecialChar);
-
     if (!hasUpperCase || !hasLowerCase || !hasDigit || !hasSpecialChar) {
-      return {isValid: false, errorMessage: "Please password must have upper case and lower case letter as well as digit and special characters"};
-    }
-    else {
+      return {isValid: false, errorMessage: "Password must have upper case and lower case letter as well as digit and special characters"};
+    } else {
       return {isValid: true};
     }  
   }
 } // Ends of passwordValidator
 
 export function phoneValidator(phone: string): ValidationResult {
-  if(!phone){
+  if(!phone || phone.trim() === ""){
     return {isValid: false, errorMessage: "Please add a phone number is required"};
   } else if (phone.length < 10 ){
     return {isValid: false, errorMessage: "Add a valid phone please"};
@@ -61,14 +52,26 @@ export function phoneValidator(phone: string): ValidationResult {
   }
 } // Ends of phoneValidator
 
-
-export function addressValidator(address: string): ValidationResult {
-  if (!address){
+export function addressValidator(streetAddress: string, city: string, state: string, zipCode: string ): ValidationResult {
+  if (!streetAddress || streetAddress.trim() === ""){
     return {isValid: false, errorMessage: "Please add the address is required"};
-  } else if (address.length < 10 ){
-    return {isValid: false, errorMessage: "Please address must have at least 10 character"}
-  } else {
-    return {isValid: true}
-  }
-
-} //Ends of addressValidator
+  } else if (streetAddress.length < 10 ){
+    return {isValid: false, errorMessage: "Please street address must have at least 10 characters"};
+  } else if (streetAddress.length > 100 ){
+    return {isValid: false, errorMessage: "Please street address must have max 100 characters"};
+  } else if (!city || city.trim() === "") {
+    return {isValid: false, errorMessage: "City is required"}
+  }  else if (city.length < 5){
+    return {isValid: false, errorMessage: "Please City must have at least 5 characters"};
+  }  else if (!state || state.trim() === ""){
+    return {isValid: false, errorMessage: "State is required"}
+  } else if (state.length < 2 ){
+    return {isValid: false, errorMessage: "Please State must have at least 2 characters"};
+  }  else if (!zipCode || zipCode.trim() === ""){
+    return {isValid: false, errorMessage: "ZIP Code is required"}
+  } else if (zipCode.length !== 5){
+    return {isValid: false, errorMessage: "Please Zip Code must be 5 characters"};
+  }  else { 
+    return {isValid: true};
+   } 
+} // Ends of addressValidator

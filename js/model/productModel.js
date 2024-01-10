@@ -9,16 +9,31 @@ const productSchema = new mongoose_1.default.Schema({
         type: String,
         required: [true, 'Please add the product name'],
     },
+    category: {
+        type: String,
+        required: [true, "Please add a product category"],
+    },
     description: {
         type: String,
-        required: [true, 'Please add a product description'],
+        required: [true, "Please add a product description"],
     },
     price: {
         type: Number,
-        required: [true, 'Please add the product price'],
+        required: [true, "Please add the product price"],
     },
-    img: {
+    color: [],
+    size: [],
+    quantity: {
+        type: Number,
+        required: [true, "Please add quantity"]
+    },
+    sku: {
         type: String,
+        required: false,
+        unique: true,
+    },
+    image: {
+        type: Object,
         required: [true, 'Please add the product image URL'],
     },
 });

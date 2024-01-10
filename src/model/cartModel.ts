@@ -11,9 +11,10 @@ interface ICartItem extends Document {
 
 interface ICart extends Document {
   user: mongoose.Types.ObjectId;
-  nameUser: string;
+  guestId: mongoose.Types.ObjectId;
+  cartId: mongoose.Types.ObjectId;
+  nameUser?: string;
   items: ICartItem[];
-  price: number;
   subTotal: number;
   total: number;
 }
@@ -35,9 +36,9 @@ const cartSchema = new mongoose.Schema<ICart>({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
   },
+  guestId: String,
   nameUser: String,
   items: [cartItemSchema],
-  price: Number,
   subTotal: Number,
   total: Number,
 });

@@ -1,40 +1,49 @@
-import {Request, Response, NextFunction} from "express";
+import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import User from "../model/userModel";
-import {IUser} from "../model/userModel";
+import AdminCompany, { IAdmin } from "../model/adminModel";
 
-// Extend the Request object to include a 'user' property
-interface AuthRequest extends Request {
-  user?: IUser | null; // Use IUser | null 
+export interface AuthRequest extends Request {
+  admin?: IAdmin;
 }
 
-//This is an async function called verifyToken
-const verifyToken = async (req: AuthRequest, 
-   res: Response) =>{
-    try {
-      const token = req.cookies.token
-      if(!token){
-        return res.status(401).json({error: "No authorized, please signup"})
-        
-      }
-       
-      //verify token
-      const verified: any = jwt.verify(token, process.env.JWT_SECRET || "");
-      //get user id from token
-      const user = await User.findById(verified.id).select("-nopassword");
-      if (!user){
-       return res.status(401).json({error: "No user found"});
-       
-      }
-      req.user = user
-    
+const verifyToken = async (
+  req: Request | AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    // Check for the token in headers
+    const token =
+      req.headers.authorization && req.headers.authorization.split(" ")[1];
 
-
-    } catch (error) {
-     return res.status(401).json({error: "Authentication failed"})
+    if (!token) {
+      return res.status(401).json({ error: "No authorized, please signup" });
     }
-  
 
-}; // Ends of verifyToken
+    const verified = jwt.verify(
+      token,
+      process.env.JWT_SECRET || ""
+    ) as { adminId: string };
 
-export default verifyToken
+    const admin = await AdminCompany.findById(verified.adminId).select(
+      "-nopassword"
+    );
+
+    if (!admin) {
+      return res.status(401).json({ error: "No user found" });
+    }
+
+    (req as AuthRequest).admin = admin;
+
+    if (admin.role === "admin") {
+      return next();
+    }
+
+    return res.status(403).json({ error: "Permission denied" });
+  } catch (error) {
+    return res.status(401).json({ error: "Authentication failed" });
+  }
+};
+
+export default verifyToken;
+

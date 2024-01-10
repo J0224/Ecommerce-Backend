@@ -22,7 +22,7 @@ const sendEmail_1 = __importDefault(require("../utils/sendEmail"));
 const userFunctions_1 = require("./userFunctions");
 const validation_1 = require("../utils/validation");
 //This is a function called genarateToken for users
-const genarateToken = (userId) => {
+const generateToken = (userId) => {
     const secret = process.env.JWT_SECRET || "";
     return jsonwebtoken_1.default.sign({ userId }, secret, { expiresIn: "1d" });
 };
@@ -30,12 +30,12 @@ const genarateToken = (userId) => {
 const signup = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         //Destructuring 
-        const { name, email, password, phone, address } = req.body;
+        const { name, lastName, email, password, confirmPassword, phone, streetAddress, city, state, zipCode, } = req.body;
         // Validate user input
         const emailValidationResult = (0, validation_1.emailValidator)(email);
         const passwordValidationResult = (0, validation_1.passwordValidator)(password);
         const phoneValidationResult = (0, validation_1.phoneValidator)(phone);
-        const addressValidationResult = (0, validation_1.addressValidator)(address);
+        const addressValidationResult = (0, validation_1.addressValidator)(streetAddress, city, state, zipCode);
         // Check if any validation failed
         if (!emailValidationResult.isValid || !passwordValidationResult.isValid || !phoneValidationResult.isValid || !addressValidationResult.isValid) {
             return res.status(400).json({
@@ -51,8 +51,12 @@ const signup = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         if (existingUser) {
             return res.status(409).json({ error: "User already exists" });
         }
+        // Check if the password and confirmPassword match
+        if (password !== confirmPassword) {
+            return res.status(400).json({ error: "Password and confirmPassword do not match" });
+        }
         // Check if all fields are present
-        if (!name || !email || !password || !phone || !address) {
+        if (!name || !lastName || !email || !password || !phone || !streetAddress || !city || !state || !zipCode) {
             return res.status(400).json({ error: "Please fill out all field required" });
         }
         // Hash the password before saving it or creating new user
@@ -60,15 +64,20 @@ const signup = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         // Create a new user
         const newUser = new userModel_1.default({
             name,
+            lastName,
             email,
             password: hashPassword,
             phone,
-            address,
+            streetAddress,
+            city,
+            state,
+            zipCode,
+            role: "customer",
         });
         // Save the user to the database
         yield newUser.save();
         // Generate a token for the user
-        const token = genarateToken(newUser._id);
+        const token = generateToken(newUser._id);
         // This is to send HTTP Only cookie
         res.cookie("token", token, {
             path: "/",
@@ -102,7 +111,7 @@ const login = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         // Find the user by email
         const user = yield userModel_1.default.findOne({ email });
         if (!user) {
-            return res.status(401).json({ error: "Invalid Credentials" });
+            return res.status(401).json({ error: "No account found with that email." });
         }
         // Check if the user is locked
         if (user.isLocked) {
@@ -118,12 +127,12 @@ const login = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 yield (0, userFunctions_1.lockUserAccount)(user);
                 return res.status(403).json({ error: "Account is locked. Please contact an administrator." });
             }
-            return res.status(401).json({ error: "Invalid Credentials, keep in mind 5 consecutive fails lock your account" });
+            return res.status(400).json({ error: "Invalid Credentials, keep in mind 5 consecutive fails lock your account" });
         }
         // Reset consecutive failed attempts on successful login
         yield (0, userFunctions_1.resetConsecutiveFailedAttempts)(user);
         // Generate a token for the user
-        const token = genarateToken(user._id);
+        const token = generateToken(user._id);
         // Update last login
         yield (0, userFunctions_1.updateLastLogin)(user);
         // This is to send HTTP Only cookie
@@ -162,8 +171,8 @@ const getUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         const { userId } = req.params;
         const user = yield userModel_1.default.findById(userId);
         if (user) {
-            const { _id, email, name, address, phone } = user;
-            return res.status(200).json({ _id, email, name, address, phone });
+            const { _id, name, lastName, email, phone, streetAddress, city, state, zipCode } = user;
+            return res.status(200).json({ _id, name, lastName, email, phone, streetAddress, city, state, zipCode });
         }
     }
     catch (error) {
@@ -203,16 +212,20 @@ const updateUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     const { userId } = req.params;
     const user = yield userModel_1.default.findById(userId);
     if (user) {
-        const { name, email, phone, address } = user;
+        const { name, email, phone, streetAddress, lastName, state, zipCode, city } = user;
         user.email = email;
         user.name = req.body.name === undefined ? name : req.body.name;
+        user.lastName = req.body.lastName === undefined ? lastName : req.body.lastName;
         user.phone = req.body.phone === undefined ? phone : req.body.phone;
-        user.address = req.body.address === undefined ? address : req.body.address;
+        user.streetAddress = req.body.address === undefined ? streetAddress : req.body.address;
+        user.state = req.body.state === undefined ? state : req.body.state;
+        user.zipCode = req.body.zipCode === undefined ? zipCode : req.body.zipCode;
+        user.city = req.body.city === undefined ? city : req.body.city;
         // Validate user input
         // Validate user input
         const emailValidationResult = (0, validation_1.emailValidator)(email);
         const phoneValidationResult = (0, validation_1.phoneValidator)(phone);
-        const addressValidationResult = (0, validation_1.addressValidator)(address);
+        const addressValidationResult = (0, validation_1.addressValidator)(streetAddress, city, state, zipCode);
         // Check if any validation failed
         if (!emailValidationResult.isValid || !phoneValidationResult.isValid || !addressValidationResult.isValid) {
             return res.status(400).json({
@@ -226,9 +239,13 @@ const updateUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
         res.status(200).json({
             _id: updatedUser._id,
             name: updatedUser.name,
+            lastName: updatedUser.lastName,
             email: updatedUser.email,
             phone: updatedUser.phone,
-            address: updatedUser.address,
+            streetAddress: updatedUser.streetAddress,
+            city: updatedUser.city,
+            state: updatedUser.state,
+            zipCode: updatedUser.zipCode,
         });
     }
     else {
@@ -285,6 +302,10 @@ const forgotPassword = (req, res) => __awaiter(void 0, void 0, void 0, function*
     if (!user) {
         return res.status(404).json({ error: "User do not exist" });
     }
+    // Check if the user is locked
+    if (user.isLocked) {
+        return res.status(403).json({ error: "Account is locked. Please contact an administrator." });
+    }
     // Delete Token if exists in DB
     let token = yield tokenModel_1.default.findOne({ userId: user._id });
     if (token) {
@@ -311,7 +332,7 @@ const forgotPassword = (req, res) => __awaiter(void 0, void 0, void 0, function*
   <div class="container-reset-password">
   <h2>Campanita Store Password Reset</h2>
 
-  <p> Hello ${user.name} <p>
+  <p> Hello ${user.name} ${user.lastName} <p>
 
   <p>We received a request to reset your Campanita Store account password. If you did not make this request, you can ignore this email.</p>
 
@@ -344,10 +365,10 @@ const forgotPassword = (req, res) => __awaiter(void 0, void 0, void 0, function*
 exports.forgotPassword = forgotPassword;
 // This is an async function called resetPassword
 const resetPassword = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { password } = req.body;
+    const { newPassword, confirmPassword } = req.body;
     const { resetToken } = req.params;
     // Validate user input
-    const passwordValidationResult = (0, validation_1.passwordValidator)(password);
+    const passwordValidationResult = (0, validation_1.passwordValidator)(newPassword && confirmPassword);
     if (!passwordValidationResult.isValid) {
         return res.status(400).json({
             error: "Invalid inputs",
@@ -355,30 +376,21 @@ const resetPassword = (req, res) => __awaiter(void 0, void 0, void 0, function* 
         });
     }
     try {
+        // Hash the reset token from the URL
         const hashedToken = crypto_1.default.createHash("sha256").update(resetToken).digest("hex");
         // Retrieve the token from the database
         const userToken = yield tokenModel_1.default.findOne({ token: hashedToken });
-        if (!userToken) {
-            return res.status(401).json({ error: "Invalid token" });
-        }
         // Check if the token is expired
-        if (userToken.expiresAt && userToken.expiresAt.getTime() < Date.now()) {
-            return res.status(401).json({ error: "Token Expired" });
+        if (!userToken || (userToken.expiresAt && userToken.expiresAt.getTime() < Date.now())) {
+            return res.status(401).json({ error: "Invalid token or expire token" });
         }
         // Retrieve the user based on the token
         const user = yield userModel_1.default.findById(userToken.userId);
         if (!user) {
             return res.status(404).json({ error: "User not found please sign up" });
         }
-        // Save token to DB
-        yield new tokenModel_1.default({
-            userId: user._id,
-            token: hashedToken,
-            createdAt: Date.now(),
-            expiresAt: Date.now() + 30 * (60 * 1000) // 30 minutes
-        }).save();
         // Hash the new password and update the user's password
-        const newHashedPassword = yield bcryptjs_1.default.hash(password, 10);
+        const newHashedPassword = yield bcryptjs_1.default.hash(newPassword, 10);
         user.password = newHashedPassword;
         // Save the updated user to the database
         yield user.save();

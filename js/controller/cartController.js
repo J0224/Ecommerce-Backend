@@ -8,49 +8,55 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteCartProduct = exports.addProduct = void 0;
+exports.getCart = exports.deleteCartProduct = exports.addProduct = void 0;
 const cartModel_1 = require("../model/cartModel");
+const mongoose_1 = __importDefault(require("mongoose"));
 // This is an async function called addProduct
 const addProduct = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         //destrocturing from Cart Schema Model ICartItem, ICart
-        const { userId, nameUser, product, quantity, } = req.body;
-        // Check if userId, nameUser, product, and quantity are present
-        if (!userId || !nameUser || !product || !quantity) {
-            return res.status(400).send("Please provide all required fields, including nameUser");
-            // Return to stop further execution
+        const { userId, nameUser, product, quantity, guestId } = req.body;
+        if (!product || !quantity) {
+            return res.status(400).send("Please provide product and quantity");
         }
-        // Finding an user in cart in the Cart Schema
-        let cart = yield cartModel_1.Cart.findOne({ user: userId, nameUser });
-        if (!userId && !nameUser) {
-            return res.status(400).send("Please add all fields required");
-            // Return to stop further execution
+        let cart;
+        if (userId) {
+            cart = yield cartModel_1.Cart.findOne({ user: userId, nameUser });
+        }
+        else {
+            cart = yield cartModel_1.Cart.findOne({ guestId });
         }
         if (!cart) {
-            // If there's no cart with the userId create a new cart
+            let guestId;
+            // Generate a unique guestId if not provided
+            guestId = new mongoose_1.default.Types.ObjectId().toHexString();
             cart = new cartModel_1.Cart({
                 user: userId,
+                guestId,
                 nameUser: nameUser,
-                items: [{
+                items: [
+                    {
                         product: product._id,
                         name: product.name,
                         price: product.price,
                         quantity,
                         subTotal: product.price * quantity,
-                        total: product.price * quantity
-                    }],
+                        total: product.price * quantity,
+                    },
+                ],
             });
         }
         else {
-            // Finding exsinting items in the cart using product _id
             const existingItem = cart.items.find((item) => item && item.product && item.product.equals(product._id));
             if (existingItem) {
                 // Asigning quantity user can increment quantity
                 existingItem.quantity += quantity;
-                // Calculating subtotal 
+                // Calculating subtotal
                 existingItem.subTotal = existingItem.quantity * product.price;
-                // Calculating total
                 existingItem.total = existingItem.quantity * product.price;
             }
             else {
@@ -63,7 +69,6 @@ const addProduct = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                     subTotal: product.price * quantity,
                     total: product.price * quantity,
                 };
-                // Pushing new items to the 
                 cart.items.push(newItem);
             }
         }
@@ -88,7 +93,7 @@ const deleteCartProduct = (req, res) => __awaiter(void 0, void 0, void 0, functi
         // Find the cart by ID and remove the product from the items array
         let cart = yield cartModel_1.Cart.findById(id);
         if (!cart) {
-            return res.status(404).json({ error: `Product with id:${id} not found in cart` });
+            return res.status(404).json({ error: `Product with id: ${product._id} not found in cart with id: ${id} ` });
         }
         // Find the item in the cart with the specified product ID
         const cartItem = cart.items.find(item => item.product.equals(product._id));
@@ -116,5 +121,22 @@ const deleteCartProduct = (req, res) => __awaiter(void 0, void 0, void 0, functi
         console.log(error);
         return res.status(500).json({ error: "Internal Server Error" });
     }
-}); // Ends of deleteCartProduct
+});
 exports.deleteCartProduct = deleteCartProduct;
+// This is an async function called getCart
+const getCart = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { id } = req.params; // Use id directly
+        // Find the cart by _id
+        const cart = yield cartModel_1.Cart.findById(id);
+        if (!cart) {
+            return res.status(404).json({ error: 'Cart not found' });
+        }
+        res.status(200).json(cart);
+    }
+    catch (error) {
+        console.error('Error in getCart:', error);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+exports.getCart = getCart;

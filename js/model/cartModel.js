@@ -21,9 +21,9 @@ const cartSchema = new mongoose_1.default.Schema({
         type: mongoose_1.default.Schema.Types.ObjectId,
         ref: "User",
     },
+    guestId: String,
     nameUser: String,
     items: [cartItemSchema],
-    price: Number,
     subTotal: Number,
     total: Number,
 });

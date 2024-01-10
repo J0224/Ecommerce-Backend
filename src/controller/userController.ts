@@ -2,7 +2,6 @@ import {Request, Response} from "express";
 import bcrypt from "bcryptjs";
 import jwt, { Secret } from "jsonwebtoken";
 import User from "../model/userModel";
-import asyncHandler from "express-async-handler";
 import Token from "../model/tokenModel";
 import crypto from "crypto";
 import sendEmail from "../utils/sendEmail";
@@ -20,7 +19,7 @@ import {
   ValidationResult, } from "../utils/validation";
 
 //This is a function called genarateToken for users
-const genarateToken = (userId: string) => {
+const generateToken = (userId: string) => {
   const secret: string = process.env.JWT_SECRET || "";
   return jwt.sign({userId}, secret, {expiresIn:"1d"});
 };
@@ -29,13 +28,13 @@ const genarateToken = (userId: string) => {
 export const signup = async(req: Request, res: Response) => { 
   try {
     //Destructuring 
-    const { name, email, password, phone, address } = req.body;
+    const { name, lastName, email, password, confirmPassword, phone, streetAddress, city, state, zipCode, } = req.body;
 
      // Validate user input
      const emailValidationResult: ValidationResult = emailValidator(email);
      const passwordValidationResult: ValidationResult = passwordValidator(password);
      const phoneValidationResult: ValidationResult = phoneValidator(phone);
-     const addressValidationResult: ValidationResult = addressValidator(address);
+     const addressValidationResult: ValidationResult = addressValidator(streetAddress, city, state, zipCode);
 
      // Check if any validation failed
      if(
@@ -56,8 +55,13 @@ export const signup = async(req: Request, res: Response) => {
       return res.status(409).json({ error: "User already exists" });
     }
 
+    // Check if the password and confirmPassword match
+if (password !== confirmPassword) {
+  return res.status(400).json({ error: "Password and confirmPassword do not match" });
+}
+
     // Check if all fields are present
-    if (!name || !email || !password || !phone || !address) {
+    if (!name || !lastName || !email || !password || !phone || !streetAddress || !city || !state || !zipCode) {
       return res.status(400).json({ error: "Please fill out all field required"});
     } 
 
@@ -67,17 +71,23 @@ export const signup = async(req: Request, res: Response) => {
     // Create a new user
     const newUser = new User({
       name,
+      lastName,
       email,
       password: hashPassword,
       phone,
-      address,
+      streetAddress,
+      city,
+      state,
+      zipCode,
+      role: "customer",
+
     });
 
     // Save the user to the database
     await newUser.save();
 
     // Generate a token for the user
-    const token = genarateToken(newUser._id);
+    const token = generateToken(newUser._id);
 
     // This is to send HTTP Only cookie
     res.cookie("token", token, {
@@ -119,7 +129,7 @@ res: Response) =>{
     // Find the user by email
     const user = await User.findOne({email});
     if(!user){
-      return res.status(401).json({error: "Invalid Credentials"})
+      return res.status(401).json({error: "No account found with that email."})
     }
 
     // Check if the user is locked
@@ -140,14 +150,14 @@ res: Response) =>{
         return res.status(403).json({error: "Account is locked. Please contact an administrator."})
       }
 
-      return res.status(401).json({error: "Invalid Credentials, keep in mind 5 consecutive fails lock your account"})
+      return res.status(400).json({error: "Invalid Credentials, keep in mind 5 consecutive fails lock your account"})
     }
 
     // Reset consecutive failed attempts on successful login
     await resetConsecutiveFailedAttempts(user);
 
      // Generate a token for the user
-     const token = genarateToken(user._id);
+     const token = generateToken(user._id);
 
      // Update last login
      await updateLastLogin(user);
@@ -191,8 +201,8 @@ export const getUser = async (req: Request, res: Response) => {
   const user = await User.findById(userId)
 
   if (user) {
-    const {_id, email, name, address, phone} = user;
-    return res.status(200).json({ _id, email, name, address, phone });
+    const {_id, name, lastName, email, phone, streetAddress, city, state, zipCode} = user;
+    return res.status(200).json({_id, name, lastName, email, phone, streetAddress, city, state, zipCode });
   }
   } catch (error) {
     console.log(error);
@@ -233,18 +243,22 @@ export const updateUser = async(req: Request, res: Response) => {
   const user = await User.findById(userId);
 
   if(user){ 
-    const {name, email, phone, address } = user;
+    const {name, email, phone, streetAddress, lastName, state, zipCode, city } = user;
     user.email = email;
-    user.name = req.body.name === undefined ? name : req.body.name;
-    user.phone = req.body.phone === undefined ? phone : req.body.phone;
-    user.address = req.body.address === undefined ?  address : req.body.address;
+    user.name = req.body.name === undefined? name: req.body.name;
+    user.lastName = req.body.lastName === undefined? lastName: req.body.lastName;
+    user.phone = req.body.phone === undefined? phone: req.body.phone;
+    user.streetAddress = req.body.address === undefined ?  streetAddress: req.body.address;
+    user.state = req.body.state === undefined? state: req.body.state;
+    user.zipCode = req.body.zipCode === undefined? zipCode: req.body.zipCode;
+    user.city = req.body.city === undefined? city: req.body.city;
 
      // Validate user input
     
      // Validate user input
      const emailValidationResult: ValidationResult = emailValidator(email);
      const phoneValidationResult: ValidationResult = phoneValidator(phone);
-     const addressValidationResult: ValidationResult = addressValidator(address);
+     const addressValidationResult: ValidationResult = addressValidator(streetAddress, city, state, zipCode);
 
      // Check if any validation failed
      if(
@@ -262,9 +276,13 @@ export const updateUser = async(req: Request, res: Response) => {
     res.status(200).json({
       _id: updatedUser._id,
       name: updatedUser.name,
+      lastName: updatedUser.lastName,
       email: updatedUser.email,
       phone: updatedUser.phone,
-      address: updatedUser.address,
+      streetAddress: updatedUser.streetAddress,
+      city: updatedUser.city,
+      state: updatedUser.state,
+      zipCode: updatedUser.zipCode,
     })
   } else {
     res.status(404).json({error: "User has not been found, please sign up"})
@@ -328,11 +346,14 @@ export const forgotPassword = async (req: Request, res: Response) => {
     });
 
    }
- 
-
-
+   
   if(!user){
     return res.status(404).json({error: "User do not exist"})
+  }
+
+   // Check if the user is locked
+   if(user.isLocked){
+    return res.status(403).json({error: "Account is locked. Please contact an administrator."})
   }
 
   // Delete Token if exists in DB
@@ -367,7 +388,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
   <div class="container-reset-password">
   <h2>Campanita Store Password Reset</h2>
 
-  <p> Hello ${user.name} <p>
+  <p> Hello ${user.name} ${user.lastName} <p>
 
   <p>We received a request to reset your Campanita Store account password. If you did not make this request, you can ignore this email.</p>
 
@@ -403,11 +424,11 @@ export const forgotPassword = async (req: Request, res: Response) => {
 
 // This is an async function called resetPassword
 export const resetPassword = async (req: Request, res: Response) => {
-  const { password } = req.body;
+  const { newPassword, confirmPassword } = req.body;
   const { resetToken } = req.params;
 
    // Validate user input
-   const passwordValidationResult: ValidationResult = passwordValidator(password);
+   const passwordValidationResult: ValidationResult = passwordValidator(newPassword && confirmPassword);
    if(!passwordValidationResult.isValid){
      return res.status(400).json({
        error: "Invalid inputs",
@@ -417,19 +438,15 @@ export const resetPassword = async (req: Request, res: Response) => {
    }
 
   try {
+     // Hash the reset token from the URL
     const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
 
     // Retrieve the token from the database
     const userToken = await Token.findOne({ token: hashedToken });
 
-
-    if (!userToken) {
-      return res.status(401).json({ error: "Invalid token" });
-    }
-
-    // Check if the token is expired
-    if (userToken.expiresAt && userToken.expiresAt.getTime() < Date.now()) {
-      return res.status(401).json({ error: "Token Expired" });
+     // Check if the token is expired
+    if (!userToken || (userToken.expiresAt && userToken.expiresAt.getTime()<Date.now() ) ) {
+      return res.status(401).json({ error: "Invalid token or expire token" });
     }
 
     // Retrieve the user based on the token
@@ -439,25 +456,18 @@ export const resetPassword = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "User not found please sign up" });
     }
 
-    // Save token to DB
-    await new Token({
-    userId: user._id,
-    token: hashedToken,
-    createdAt: Date.now(),
-    expiresAt: Date.now() + 30 * (60 * 1000) // 30 minutes
-    }).save();
+     // Hash the new password and update the user's password
+     const newHashedPassword = await bcrypt.hash(newPassword, 10);
+     user.password = newHashedPassword;
 
-    // Hash the new password and update the user's password
-    const newHashedPassword = await bcrypt.hash(password, 10);
-    user.password = newHashedPassword;
-
-    // Save the updated user to the database
+     // Save the updated user to the database
     await user.save();
 
-    // Delete the token from the database since it's been used
-    await userToken.deleteOne();
+     // Delete the token from the database since it's been used
+     await userToken.deleteOne();
 
-    return res.status(200).json({ message: "Password has been reset successfully" });
+     return res.status(200).json({ message: "Password has been reset successfully" });
+
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Internal Server Error" });
