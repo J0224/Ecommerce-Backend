@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node js/server.js",
     "backend": "nodemon js/server.js",
-    "both": "concurrently \"npm run backend\"  \"cd ../campanita-store-frontend && npm run dev\" ",
+    "both": "concurrently \"npm run backend\"  \"cd ../campanita-store-frontend/e-commerce-cart/Campanita-Store-Frontend && npm run dev\" ",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -15,13 +15,14 @@
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cloudinary": "^1.41.0",
-    "connect-mongodb-session": "^3.1.1",
+    "connect-mongodb-session": "^5.0.0",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-async-handler": "^1.2.0",
     "express-session": "^1.17.3",
+    "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.0.0",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.5",
@@ -34,14 +35,13 @@
     "@types/connect-mongodb-session": "^2.4.7",
     "@types/cookie-parser": "^1.4.6",
     "@types/cors": "^2.8.17",
-    "@types/dotenv": "^8.2.0",
     "@types/express": "^4.17.21",
     "@types/express-session": "^1.17.10",
     "@types/jsonwebtoken": "^9.0.5",
-    "@types/mongoose": "^5.11.97",
     "@types/multer": "^1.4.11",
     "@types/node": "^20.9.4",
     "@types/nodemailer": "^6.4.14",
+    "@types/uuid": "^9.0.8",
     "concurrently": "^8.2.2",
     "ts-node": "^10.9.1"
   }

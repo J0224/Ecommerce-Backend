@@ -172,7 +172,7 @@ res: Response) =>{
     });
 
      // Return user information and token
-   return res.status(200).json({userId: user._id, token});
+   return res.status(200).json({userId: user._id,firstName: user.name, token});
   } catch (error) {
     console.log(error);
     return res.status(500).json({error: "Internal Server Error"})

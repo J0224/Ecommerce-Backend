@@ -144,7 +144,7 @@ const login = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             secure: true
         });
         // Return user information and token
-        return res.status(200).json({ userId: user._id, token });
+        return res.status(200).json({ userId: user._id, firstName: user.name, token });
     }
     catch (error) {
         console.log(error);

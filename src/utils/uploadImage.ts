@@ -44,5 +44,18 @@ const fileSizeFormatter = (bytes: number, decimal: number) => {
   );
 };
 
+// uploadImage.ts
+import { v2 as cloudinary } from 'cloudinary';
+
+// Initialize cloudinary configuration
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || "",
+  api_key: process.env.CLOUDINARY_API_KEY || "",
+  api_secret: process.env.CLOUDINARY_API_SECRET || "",
+});
+
+export { cloudinary };
+
+
 
 export { upload, fileSizeFormatter };
